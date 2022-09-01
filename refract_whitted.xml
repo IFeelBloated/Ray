@@ -1,0 +1,67 @@
+<!-- Refraction test scene similar to example from Fig 6 of "An Improved -->
+<!-- Illumination Model for Shaded Display" (Whitted, 1980) -->
+<!-- http://old.siggraph.org/publications/rarities/whitted-raytracing-1979supp.pdf -->
+<scenefile>
+    <globaldata>
+		<diffusecoeff v="0.5"/>
+		<specularcoeff v="1"/>
+		<ambientcoeff v="0.0"/>
+		<transparentcoeff v="1"/>
+    </globaldata>
+
+    <cameradata>
+		<pos x="0" y="0" z="3.5"/>
+		<look x="0" y="0" z="-1" />
+		<up x="0" y="1" z="0"/>
+		<heightangle v="45"/>
+    </cameradata>
+	
+	<lightdata>
+		<id v="0"/>
+		<type v="directional"/>
+		<color r="0.8" g="0.8" b="0.8"/>
+		<direction x="0" y="-1" z="-1"/>
+	</lightdata>
+
+	<lightdata>
+		<id v="1"/>
+		<type v="directional"/>
+		<color r="0.8" g="0.8" b="0.8"/>
+		<direction x="1" y="-1" z="0"/>
+	</lightdata>
+
+    <object type="tree" name="root">	
+	<transblock>
+	    <translate x="0" y="-0.75" z="-0.75"/>
+	    <scale x="4" y="0.02" z="4"/>
+	    <object type="primitive" name="cube" >
+	      <diffuse r="0.5" g=".35" b=".35"/>
+	      <texture file="/image/check.png" u="3" v="3"/>
+	      <blend v="0.4" />
+	    </object>
+	</transblock>
+
+	<transblock>
+	  <translate x="0" y="0" z="-0.5" />
+		<object type="primitive" name="sphere" >
+		<transparent r="1.0" g="1.0" b="1.0"/>
+		<ior v="1.67"/>
+		<shininess v="25.0"/>
+		<specular r="0.5" g="0.5" b="0.5"/>
+		<reflective r="1.0" g="1.0" b="1.0"/>
+            <diffuse r="0.0" g="0.0" b="0.0"/>
+	    </object>
+	</transblock>
+
+	<transblock>
+	  <translate x="0.5" y="0.3" z="-1.7" />
+		<object type="primitive" name="sphere" >
+		<shininess v="25.0"/>
+		<specular r="1.0" g="1.0" b="1.0"/>
+		<diffuse r="0.8" g="0.8" b="0.0"/>
+	    </object>
+	</transblock>
+    </object>
+
+</scenefile>
+
