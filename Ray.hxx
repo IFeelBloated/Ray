@@ -10,7 +10,7 @@ namespace ViewPlane {
 		auto U = V * Width / Height;
 		auto TransformationToWorldSpace = [&] {
 			auto w = -Camera.Look;
-			auto v = Camera.Up - glm::dot(Camera.Up, w) * w;
+			auto v = glm::normalize(Camera.Up - glm::dot(Camera.Up, w) * w);
 			auto u = glm::cross(v, w);
 			return glm::translate(Camera.Position) * glm::mat4{
 				u.x, u.y, u.z, 0.f,
