@@ -1,0 +1,45 @@
+ConfigureProjectorFromScreenSpaceToWorldSpace: Camera -> Height -> Width -> Projector where
+    Projector: y -> x -> WorldSpaceCoordinates
+
+ImplicitFunction: EyePoint -> RayDirection -> (t, SurfaceNormal)
+(+): ImplicitFunction -> ImplicitFunction -> ImplicitFunction
+(*): TransformationMatrix -> ImplicitFunction -> ImplicitFunction
+
+QuadraticSolver: CoefficientGenerator -> NormalGenerator -> Constraint -> ImplicitFunction where
+    CoefficientGenerator: EyePoint -> RayDirection -> (a, b, c)
+    NormalGenerator: IntersectionPosition -> SurfaceNormal
+    Constraint: x -> y -> z -> IntersectionValidity
+
+PlanarSolver: NormalGenerator -> MainAxis -> ...SupportAxes -> PlaneConstructor where
+    NormalGenerator: PlaneCoordinate -> SurfaceNormal
+    PlaneConstructor: PlaneCoordinate -> Constraint -> ImplicitFunction where
+        Constraint: IntersectionPosition[SupportAxes...] -> IntersectionValidity
+XZPlane: PlaneConstructor
+XYPlane: PlaneConstructor
+YZPlane: PlaneConstructor
+
+BoundedPlaneConstraint: x -> y -> IntersectionValidity
+CircularPlaneConstraint: x -> y -> IntersectionValidity
+BoundedHeightConstraint: x -> y -> z -> IntersectionValidity
+
+Cube: ImplicitFunction
+Sphere: ImplicitFunction
+Cylinder: ImplicitFunction
+Cone: ImplicitFunction
+
+Light: IntersectionPosition -> (LightDistance, LightDirection, LightColor)
+AttenuationFunction: LightDistance -> Attenuation
+PointLight: LightPosition -> LightColor -> AttenuationFunction -> Light
+DirectionalLight: LightDirection -> LightColor -> Light
+SpotLight: LightPosition -> Axis -> θ -> Penumbra -> LightColor -> AttenuationFunction -> Light
+
+IlluminationModel: Material -> IntersectionPosition -> SurfaceNormal -> EyePoint -> ReflectedIntensity -> RefractedIntensity -> Intensity
+DiffuseIllumination: LightDirection -> SurfaceNormal -> LightColor -> DiffuseCoefficients -> Intensity
+SpecularIllumination: LightDirection -> SurfaceNormal -> EyeDirection -> LightColor -> SpecularCoefficients -> SpecularExponent -> Intensity
+WhittedModel: [Light] -> [ImplicitFunction] -> IlluminationModel
+
+Reflect: IncomingDirection -> SurfaceNormal -> ReflectedDirection
+Refract: IncomingDirection -> SurfaceNormal -> η -> (TotalInternalReflection, RefractedDirection)
+Intersect: EyePoint -> RayDirection -> [(ImplicitFunction, Material)] -> (t, SurfaceNormal, Material)
+DetectOcclusion: EyePoint -> RayDirection -> DistanceLimit -> [ImplicitFunction] -> WhetherOcclusionExists
+Trace: EyePoint -> RayDirection -> IlluminationModel -> [(ImplicitFunction, Material)] -> RecursionDepth -> Intensity
