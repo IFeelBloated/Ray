@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include "../Ray.hxx"
 #include "../Filter.hxx"
+#include "glm/gtx/norm.hpp"
 
 namespace RayTracer::Config {
     inline auto enableShadow = false;
@@ -30,7 +31,8 @@ namespace RayTracer {
                     DownsampledImage[c][y][x] = (ResampledImage[c][2 * y][2 * x] + ResampledImage[c][2 * y + 1][2 * x] + ResampledImage[c][2 * y][2 * x + 1] + ResampledImage[c][2 * y + 1][2 * x + 1]) / 4;
         return DownsampledImage.Finalize();
     }
-    auto Render(auto Height, auto Width, auto SupersamplingExponent, auto&& Metadata) {
+    [[gnu::flatten]] auto Render(auto Height, auto Width, auto SupersamplingExponent, auto&& Metadata) {
+        SupersamplingExponent = Config::enableSuperSample ? SupersamplingExponent : 0;
         Height <<= SupersamplingExponent;
         Width <<= SupersamplingExponent;
 
@@ -77,17 +79,19 @@ namespace RayTracer {
                 glm::vec3 TransparencyCoefficients;
                 double SpecularExponent;
                 double η;
+                bool IsReflective;
+                bool IsTransparent;
             };
             auto&& [Primitive, ObjectTransformation] = x;
             auto ImplicitFunction = [&]()->ImplicitFunctions::Ǝ {
                 if (Primitive.type == PrimitiveType::PRIMITIVE_CUBE)
-                    return ImplicitFunctions::Cube;
+                    return ObjectTransformation * ImplicitFunctions::Standard::Cube;
                 else if (Primitive.type == PrimitiveType::PRIMITIVE_SPHERE)
-                    return ImplicitFunctions::Sphere;
+                    return ObjectTransformation * ImplicitFunctions::Standard::Sphere;
                 else if (Primitive.type == PrimitiveType::PRIMITIVE_CYLINDER)
-                    return ImplicitFunctions::Cylinder;
+                    return ObjectTransformation * ImplicitFunctions::Standard::Cylinder;
                 else if (Primitive.type == PrimitiveType::PRIMITIVE_CONE)
-                    return ImplicitFunctions::Cone;
+                    return ObjectTransformation * ImplicitFunctions::Standard::Cone;
                 else
                     throw std::runtime_error{ "Unrecognized primitive type detected!" };
             }();
@@ -98,12 +102,16 @@ namespace RayTracer {
                 .ReflectionCoefficients = glm::vec3{ Primitive.material.cReflective },
                 .TransparencyCoefficients = glm::vec3{ Primitive.material.cTransparent },
                 .SpecularExponent = Primitive.material.shininess,
-                .η = Primitive.material.ior
+                .η = Primitive.material.ior,
+                .IsReflective = Config::enableReflection && glm::l1Norm(glm::vec3{ Primitive.material.cReflective }) > 1e-16,
+                .IsTransparent = Config::enableRefraction && glm::l1Norm(glm::vec3{ Primitive.material.cTransparent }) > 1e-16
             };
-            return std::tuple{ ImplicitFunction, ObjectTransformation, Material };
+            return std::tuple{ ImplicitFunction, Material };
         };
 
-        auto IlluminationModel = Illuminations::WhittedModel(LightRecords, ObjectRecords);
+        auto ObstructionRecords = Config::enableShadow ? ObjectRecords | [](auto&& x) { return std::get<0>(x); } : std::vector<ImplicitFunctions::Ǝ>{};
+
+        auto IlluminationModel = Illuminations::WhittedModel(LightRecords, ObstructionRecords);
         auto SupersampledImage = Filter::Frame{ Height, Width, 3 };
 
         Illuminations::Ka = Metadata.globalData.ka;

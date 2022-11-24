@@ -9,6 +9,8 @@
 #include <type_traits>
 #include <functional>
 #include <algorithm>
+#include <numeric>
+#include <execution>
 #include <numbers>
 #include <concepts>
 #include <limits>
@@ -327,6 +329,8 @@ namespace ContainerManipulators {
 			else
 				return std::tuple{ TargetContainer.begin(), SourceContainer.begin() };
 		};
+		if constexpr (requires { TargetContainer.reserve(EstimateSourceContainerSize()); })
+			TargetContainer.reserve(EstimateSourceContainerSize());
 		if constexpr (requires { TargetContainer.push_back(ConstructPlaceholderForTransformedElement()); })
 			for (auto&& x : SourceContainer)
 				TargetContainer.push_back(ApplyElementWiseTransformation(x));
