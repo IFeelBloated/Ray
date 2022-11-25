@@ -22,6 +22,7 @@ add_definitions(-D_USE_MATH_DEFINES)
 add_definitions(-DTIXML_USE_STL)
 add_definitions(-DGLM_SWIZZLE)
 add_definitions(-DGLM_FORCE_RADIANS)
+add_definitions(-DQT_NO_KEYWORDS)
 
 add_executable(Ray
   main.cpp
