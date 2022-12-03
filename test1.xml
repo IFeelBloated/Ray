@@ -1,0 +1,80 @@
+<scenefile>
+	<globaldata>
+		<diffusecoeff v="0.5"/>
+		<specularcoeff v="1"/>
+		<ambientcoeff v="0.5"/>
+		<transparentcoeff v="1"/>
+	</globaldata>
+
+	<cameradata>
+		<pos x="-6" y="4" z="4"/>
+		<focus x="0" y="0" z="0"/>
+		<up x="0" y="1" z="0"/>
+		<heightangle v="30"/>
+	</cameradata>
+
+	<lightdata>
+		<id v="0"/>
+		<type v="directional"/>
+		<color r="0.8" g="0.8" b="0.8"/>
+		<direction x="0" y="-1" z="-1"/>
+	</lightdata>
+
+	<lightdata>
+		<id v="1"/>
+		<type v="directional"/>
+		<color r="0.4" g="0.4" b="0.4"/>
+		<direction x="1" y="-1" z="0"/>
+	</lightdata>
+
+	<object type="tree" name="root">
+                <transblock>
+			<translate x="-0.65" y="0" z="0.65"/>
+			<object type="primitive" name="sphere" >
+				<shininess v="15.0"/>
+				<specular r="0.5" g="0.5" b="0.5"/>
+				<reflective r="1" g="1" b="1"/>
+				<transparent r="1.0" g="1.0" b="1.0"/>
+				<ior v="2.4"/>
+				<diffuse r="0." g="0." b="0."/>
+			</object>
+		</transblock>
+		<transblock>
+			<translate x="-0.65" y="0" z="-0.65"/>
+			<object type="primitive" name="cone" >
+				<shininess v="15.0"/>
+				<specular r="0.5" g="0.5" b="0.5"/>
+				<reflective r="0.5" g="0.5" b="0.5"/>
+				<diffuse r="0.6" g="0.6" b="0.8"/>
+			</object>
+		</transblock>
+		<transblock>
+			<translate x="0.65" y="0" z="-0.65"/>
+			<object type="primitive" name="sphere" >
+				<shininess v="15.0"/>
+				<specular r="0.5" g="0.5" b="0.5"/>
+				<reflective r="0.5" g="0.5" b="0.5"/>
+				<diffuse r="0.6" g="0.8" b="0.6"/>
+			</object>
+		</transblock>
+		<transblock>
+			<translate x="0.65" y="0" z="0.65"/>
+			<object type="primitive" name="cube" >
+				<shininess v="15.0"/>
+				<specular r="0.5" g="0.5" b="0.5"/>
+				<reflective r="1" g="1" b="1"/>
+				<diffuse r="0.7" g="0.7" b="0.7"/>
+			</object>
+		</transblock>
+		<transblock>
+			<translate x="0" y="-0.6" z="0"/>
+			<scale x="6" y="0.1" z="6"/>
+			<object type="primitive" name="cube" >
+				<reflective r="0.1" g="0.1" b="0.1"/>
+				<diffuse r="0.1" g="0.4" b="0.8"/>
+			</object>
+		</transblock>
+	</object>
+
+</scenefile>
+
