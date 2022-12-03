@@ -1,5 +1,5 @@
-ConfigureProjectorFromScreenSpaceToWorldSpace: Camera -> Height -> Width -> Projector where
-    Projector: y -> x -> WorldSpaceCoordinates
+ConfigureProjectorFromScreenSpaceToWorldSpace: Camera -> Width -> Height -> Projector where
+    Projector: x -> y -> WorldSpaceCoordinates
 
 ImplicitFunction: EyePoint -> RayDirection -> (t, SurfaceNormal)
 (+): ImplicitFunction -> ImplicitFunction -> ImplicitFunction

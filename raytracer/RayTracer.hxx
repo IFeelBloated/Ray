@@ -51,7 +51,7 @@ namespace RayTracer {
                 .HeightAngle = glm::radians(Metadata.cameraData.heightAngle),
                 .FocalLength = 0.1
             };
-            return ViewPlane::ConfigureProjectorFromScreenSpaceToWorldSpace(Camera, Height, Width);
+            return ViewPlane::ConfigureProjectorFromScreenSpaceToWorldSpace(Camera, Width, Height);
         }();
 
         auto LightRecords = Metadata.lights | [](auto&& x)->Lights::Ǝ {
@@ -121,7 +121,7 @@ namespace RayTracer {
 
         for (auto y : Range{ Height })
             for (auto x : Range{ Width })
-                for (auto AccumulatedIntensity = Ray::Trace(Metadata.cameraData.pos, glm::normalize(ProjectToWorldSpace(y, x) - Metadata.cameraData.pos), IlluminationModel, ObjectRecords, 1); auto c : Range{ 3 })
+                for (auto AccumulatedIntensity = Ray::Trace(Metadata.cameraData.pos, glm::normalize(ProjectToWorldSpace(x, y) - Metadata.cameraData.pos), IlluminationModel, ObjectRecords, 1); auto c : Range{ 3 })
                     SupersampledImage[c][y][x] = AccumulatedIntensity[c];
 
         auto RenderedImage = SupersampledImage.Finalize();

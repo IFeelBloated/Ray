@@ -1,11 +1,8 @@
 ﻿#pragma once
-#include "Infrastructure.hxx"
-#include "glm/glm.hpp"
-#include "glm/gtc/matrix_transform.hpp"
-#include "glm/gtx/transform.hpp"
+#include "glm_fix.hxx"
 
 namespace ViewPlane {
-	auto ConfigureProjectorFromScreenSpaceToWorldSpace(auto&& Camera, auto Height, auto Width) {
+	auto ConfigureProjectorFromScreenSpaceToWorldSpace(auto&& Camera, auto Width, auto Height) {
 		auto V = 2 * Camera.FocalLength * std::tan(Camera.HeightAngle / 2);
 		auto U = V * Width / Height;
 		auto TransformationToWorldSpace = [&] {
@@ -19,7 +16,7 @@ namespace ViewPlane {
 				0.f, 0.f, 0.f, 1.f
 			};
 		}();
-		return [=](auto y, auto x) {
+		return [=](auto x, auto y) {
 			auto NormalizedX = (x + 0.5) / Width - 0.5;
 			auto NormalizedY = 0.5 - (y + 0.5) / Height;
 			return TransformationToWorldSpace * glm::vec4{ U * NormalizedX, V * NormalizedY, -Camera.FocalLength, 1. };
@@ -40,7 +37,7 @@ namespace Ray {
 		if (auto Discriminant = 1 - η * η * (1 - cosθ1 * cosθ1); Discriminant < 0)
 			return std::tuple{ true, glm::vec4{} };
 		else
-			return std::tuple{ false, glm::normalize(static_cast<float>(η) * IncomingDirection + static_cast<float>(η * cosθ1 - std::sqrt(Discriminant)) * SurfaceNormal) };
+			return std::tuple{ false, glm::normalize(η * IncomingDirection + (η * cosθ1 - std::sqrt(Discriminant)) * SurfaceNormal) };
 	}
 	auto Intersect(auto&& EyePoint, auto&& RayDirection, auto& ObjectRecords) {
 		auto IntersectionRecords = ObjectRecords | [&](auto& x) {
@@ -57,7 +54,7 @@ namespace Ray {
 	}
 	auto Trace(auto&& EyePoint, auto&& RayDirection, auto&& IlluminationModel, auto&& ObjectRecords, auto RecursionDepth)->glm::vec3 {
 		if (auto&& [t, SurfaceNormal, SurfaceMaterial] = Intersect(EyePoint, RayDirection, ObjectRecords); RecursionDepth < RecursiveTracingDepth && t != NoIntersection) {
-			auto IntersectionPosition = EyePoint + static_cast<float>(t) * RayDirection;
+			auto IntersectionPosition = EyePoint + t * RayDirection;
 			auto HomogenizedSurfaceNormal = glm::vec4{ SurfaceNormal, 0 };
 			auto AccumulateReflectedIntensity = [&] {
 				auto ReflectedRayDirection = Reflect(RayDirection, HomogenizedSurfaceNormal);
@@ -83,13 +80,13 @@ namespace Ray {
 			};
 			auto [Reflectance, ReflectedIntensity, RefractedIntensity] = [&] {
 				if (SurfaceMaterial.IsReflective && SurfaceMaterial.IsTransparent)
-					return std::tuple{ static_cast<float>(EstimateReflectance()), AccumulateReflectedIntensity(), AccumulateRefractedIntensity() };
+					return std::tuple{ EstimateReflectance(), AccumulateReflectedIntensity(), AccumulateRefractedIntensity() };
 				else if (SurfaceMaterial.IsReflective)
-					return std::tuple{ 1.f, AccumulateReflectedIntensity(), glm::vec3{ 0, 0, 0 } };
+					return std::tuple{ 1., AccumulateReflectedIntensity(), glm::vec3{ 0, 0, 0 } };
 				else if (SurfaceMaterial.IsTransparent)
-					return std::tuple{ 0.f, glm::vec3{ 0, 0, 0 }, AccumulateRefractedIntensity() };
+					return std::tuple{ 0., glm::vec3{ 0, 0, 0 }, AccumulateRefractedIntensity() };
 				else
-					return std::tuple{ 0.f, glm::vec3{ 0, 0, 0 }, glm::vec3{ 0, 0, 0 } };
+					return std::tuple{ 0., glm::vec3{ 0, 0, 0 }, glm::vec3{ 0, 0, 0 } };
 			}();
 			return IlluminationModel(SurfaceMaterial, IntersectionPosition, HomogenizedSurfaceNormal, EyePoint, Reflectance * ReflectedIntensity, (1 - Reflectance) * RefractedIntensity);
 		}
@@ -124,7 +121,7 @@ namespace Lights {
 					auto α = (φ - Umbra) / Penumbra;
 					return -2 * std::pow(α, 3) + 3 * std::pow(α, 2);
 				}();
-				return std::tuple{ Distance, Direction, static_cast<float>(1 - Falloff) * Attenuation * Color };
+				return std::tuple{ Distance, Direction, (1 - Falloff) * Attenuation * Color };
 			}
 		};
 	}
@@ -137,7 +134,7 @@ namespace Illuminations {
 		return std::max(glm::dot(SurfaceNormal, -LightDirection), 0.f) * DiffuseCoefficients * LightColor;
 	}
 	auto Specular(auto&& LightDirection, auto&& SurfaceNormal, auto&& EyeDirection, auto&& LightColor, auto&& SpecularCoefficients, auto SpecularExponent) {
-		return static_cast<float>(std::pow(std::max(glm::dot(Ray::Reflect(LightDirection, SurfaceNormal), EyeDirection), 0.f), SpecularExponent)) * SpecularCoefficients * LightColor;
+		return std::pow(std::max(glm::dot(Ray::Reflect(LightDirection, SurfaceNormal), EyeDirection), 0.f), SpecularExponent) * SpecularCoefficients * LightColor;
 	}
 	auto WhittedModel(auto& LightRecords, auto& ObstructionRecords) {
 		return [&](auto&& Material, auto&& SurfacePosition, auto&& SurfaceNormal, auto&& EyePoint, auto&& ReflectedIntensity, auto&& RefractedIntensity) {
@@ -189,7 +186,7 @@ namespace ImplicitFunctions::Solvers {
 		return [=](auto&& EyePoint, auto&& RayDirection) {
 			auto [a, b, c] = CoefficientGenerator(EyePoint, RayDirection);
 			auto ConstrainExistingRoot = [&](auto Root) {
-				auto IntersectionPosition = glm::vec3{ EyePoint + static_cast<float>(Root) * RayDirection };
+				auto IntersectionPosition = glm::vec3{ EyePoint + Root * RayDirection };
 				return Constraint(IntersectionPosition.x, IntersectionPosition.y, IntersectionPosition.z) ? std::tuple{ Root, NormalGenerator(IntersectionPosition) } : std::tuple{ Ray::NoIntersection, glm::vec3{} };
 			};
 			if (auto Discriminant = b * b - 4 * a * c; std::abs(a) <= ε || Discriminant < 0)
