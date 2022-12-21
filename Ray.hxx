@@ -19,7 +19,8 @@ namespace ViewPlane {
 		return [=](auto x, auto y) {
 			auto NormalizedX = (x + 0.5) / Width - 0.5;
 			auto NormalizedY = 0.5 - (y + 0.5) / Height;
-			return TransformationToWorldSpace * glm::vec4{ U * NormalizedX, V * NormalizedY, -Camera.FocalLength, 1. };
+			auto HomogenizedCoordinates = TransformationToWorldSpace * glm::vec4{ U * NormalizedX, V * NormalizedY, -Camera.FocalLength, 1. };
+			return glm::vec3{ HomogenizedCoordinates };
 		};
 	}
 }
@@ -35,7 +36,7 @@ namespace Ray {
 	auto Refract(auto&& IncomingDirection, auto&& SurfaceNormal, auto η) {
 		auto cosθ1 = glm::dot(-SurfaceNormal, IncomingDirection);
 		if (auto Discriminant = 1 - η * η * (1 - cosθ1 * cosθ1); Discriminant < 0)
-			return std::tuple{ true, glm::vec4{} };
+			return std::tuple{ true, glm::vec3{} };
 		else
 			return std::tuple{ false, glm::normalize(η * IncomingDirection + (η * cosθ1 - std::sqrt(Discriminant)) * SurfaceNormal) };
 	}
@@ -55,19 +56,18 @@ namespace Ray {
 	auto Trace(auto&& EyePoint, auto&& RayDirection, auto&& IlluminationModel, auto&& ObjectRecords, auto RecursionDepth)->glm::vec3 {
 		if (auto&& [t, SurfaceNormal, SurfaceMaterial] = Intersect(EyePoint, RayDirection, ObjectRecords); RecursionDepth < RecursiveTracingDepth && t != NoIntersection) {
 			auto IntersectionPosition = EyePoint + t * RayDirection;
-			auto HomogenizedSurfaceNormal = glm::vec4{ SurfaceNormal, 0 };
 			auto AccumulateReflectedIntensity = [&] {
-				auto ReflectedRayDirection = Reflect(RayDirection, HomogenizedSurfaceNormal);
+				auto ReflectedRayDirection = Reflect(RayDirection, SurfaceNormal);
 				return Trace(IntersectionPosition + SelfIntersectionDisplacement * ReflectedRayDirection, ReflectedRayDirection, IlluminationModel, ObjectRecords, RecursionDepth + 1);
 			};
 			auto AccumulateRefractedIntensity = [&] {
-				auto [RefractionNormal, η] = glm::dot(RayDirection, HomogenizedSurfaceNormal) > 0 ? std::tuple{ -HomogenizedSurfaceNormal, SurfaceMaterial.η } : std::tuple{ HomogenizedSurfaceNormal, 1 / SurfaceMaterial.η };
+				auto [RefractionNormal, η] = glm::dot(RayDirection, SurfaceNormal) > 0 ? std::tuple{ -SurfaceNormal, SurfaceMaterial.η } : std::tuple{ SurfaceNormal, 1 / SurfaceMaterial.η };
 				if (auto [TotalInternalReflection, RefractedRayDirection] = Refract(RayDirection, RefractionNormal, η); TotalInternalReflection == false)
 					return Trace(IntersectionPosition + SelfIntersectionDisplacement * RefractedRayDirection, RefractedRayDirection, IlluminationModel, ObjectRecords, RecursionDepth + 1);
 				return glm::vec3{ 0, 0, 0 };
 			};
 			auto EstimateReflectance = [&] {
-				auto cosθi = glm::dot(RayDirection, HomogenizedSurfaceNormal);
+				auto cosθi = glm::dot(RayDirection, SurfaceNormal);
 				auto [η1, η2] = cosθi > 0 ? std::tuple{ 1., SurfaceMaterial.η } : std::tuple{ SurfaceMaterial.η, 1. };
 				if (auto sinθt = η2 / η1 * std::sqrt(std::max(0., 1. - cosθi * cosθi)); sinθt >= 1)
 					return 1.;
@@ -88,14 +88,14 @@ namespace Ray {
 				else
 					return std::tuple{ 0., glm::vec3{ 0, 0, 0 }, glm::vec3{ 0, 0, 0 } };
 			}();
-			return IlluminationModel(SurfaceMaterial, IntersectionPosition, HomogenizedSurfaceNormal, EyePoint, Reflectance * ReflectedIntensity, (1 - Reflectance) * RefractedIntensity);
+			return IlluminationModel(SurfaceMaterial, IntersectionPosition, SurfaceNormal, EyePoint, Reflectance * ReflectedIntensity, (1 - Reflectance) * RefractedIntensity);
 		}
 		return { 0, 0, 0 };
 	}
 }
 
 namespace Lights {
-	using Signature = auto(const glm::vec4&)->std::tuple<double, glm::vec4, glm::vec3>;
+	using Signature = auto(const glm::vec3&)->std::tuple<double, glm::vec3, glm::vec3>;
 	using Ǝ = std::function<Signature>;
 
 	auto Point(auto&& Position, auto&& Color, auto&& AttenuationFunction) {
@@ -150,7 +150,7 @@ namespace Illuminations {
 }
 
 namespace ImplicitFunctions {
-	using Signature = auto(const glm::vec4&, const glm::vec4&)->std::tuple<double, glm::vec3>;
+	using Signature = auto(const glm::vec3&, const glm::vec3&)->std::tuple<double, glm::vec3>;
 	using Ǝ = std::function<Signature>;
 
 	constexpr auto ε = std::numeric_limits<double>::min();
@@ -158,8 +158,8 @@ namespace ImplicitFunctions {
 
 namespace { // implicit function operators are globally visible
 	auto operator+(auto&& ImplicitFunction, auto&& OtherImplicitFunction) requires requires {
-		{ ImplicitFunction(glm::vec4{}, glm::vec4{}) }->SubtypeOf<std::tuple<double, glm::vec3>>;
-		{ OtherImplicitFunction(glm::vec4{}, glm::vec4{}) }->SubtypeOf<std::tuple<double, glm::vec3>>;
+		{ ImplicitFunction(glm::vec3{}, glm::vec3{}) }->SubtypeOf<std::tuple<double, glm::vec3>>;
+		{ OtherImplicitFunction(glm::vec3{}, glm::vec3{}) }->SubtypeOf<std::tuple<double, glm::vec3>>;
 	} {
 		return [=](auto&& EyePoint, auto&& RayDirection) {
 			return std::min(
@@ -170,10 +170,13 @@ namespace { // implicit function operators are globally visible
 		};
 	}
 	auto operator*(SubtypeOf<glm::mat4> auto&& ObjectTransformation, auto&& ImplicitFunction) requires requires {
-		{ ImplicitFunction(glm::vec4{}, glm::vec4{}) }->SubtypeOf<std::tuple<double, glm::vec3>>;
+		{ ImplicitFunction(glm::vec3{}, glm::vec3{}) }->SubtypeOf<std::tuple<double, glm::vec3>>;
 	} {
 		return [=, InverseTransformation = glm::inverse(ObjectTransformation), NormalTransformation = glm::inverse(glm::transpose(glm::mat3{ ObjectTransformation }))](auto&& EyePoint, auto&& RayDirection) {
-			auto [ObjectSpaceEyePoint, ObjectSpaceRayDirection] = std::array{ InverseTransformation * EyePoint, InverseTransformation * RayDirection };
+			auto [ObjectSpaceEyePoint, ObjectSpaceRayDirection] = [&] {
+				auto [HomogenizedEyePoint, HomogenizedRayDirection] = std::tuple{ glm::vec4{ EyePoint, 1 }, glm::vec4{ RayDirection, 0 } };
+				return std::tuple{ glm::vec3{ InverseTransformation * HomogenizedEyePoint }, glm::vec3{ InverseTransformation * HomogenizedRayDirection } };
+			}();
 			if (auto [t, SurfaceNormal] = ImplicitFunction(ObjectSpaceEyePoint, ObjectSpaceRayDirection); t != Ray::NoIntersection)
 				return std::tuple{ t, glm::normalize(NormalTransformation * SurfaceNormal) };
 			return std::tuple{ Ray::NoIntersection, glm::vec3{} };

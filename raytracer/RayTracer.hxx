@@ -36,23 +36,21 @@ namespace RayTracer {
         Height <<= SupersamplingExponent;
         Width <<= SupersamplingExponent;
 
-        auto ProjectToWorldSpace = [&] {
-            using CameraType = struct {
-                glm::vec3 Position;
-                glm::vec3 Look;
-                glm::vec3 Up;
-                double HeightAngle;
-                double FocalLength;
-            };
-            auto Camera = CameraType{
-                .Position = glm::vec3{ Metadata.cameraData.pos },
-                .Look = glm::normalize(glm::vec3{ Metadata.cameraData.look }),
-                .Up = glm::normalize(glm::vec3{ Metadata.cameraData.up }),
-                .HeightAngle = glm::radians(Metadata.cameraData.heightAngle),
-                .FocalLength = 0.1
-            };
-            return ViewPlane::ConfigureProjectorFromScreenSpaceToWorldSpace(Camera, Width, Height);
-        }();
+        using CameraType = struct {
+            glm::vec3 Position;
+            glm::vec3 Look;
+            glm::vec3 Up;
+            double HeightAngle;
+            double FocalLength;
+        };
+        auto Camera = CameraType{
+            .Position = glm::vec3{ Metadata.cameraData.pos },
+            .Look = glm::normalize(glm::vec3{ Metadata.cameraData.look }),
+            .Up = glm::normalize(glm::vec3{ Metadata.cameraData.up }),
+            .HeightAngle = glm::radians(Metadata.cameraData.heightAngle),
+            .FocalLength = 0.1
+        };
+        auto ProjectToWorldSpace = ViewPlane::ConfigureProjectorFromScreenSpaceToWorldSpace(Camera, Width, Height);
 
         auto LightRecords = Metadata.lights | [](auto&& x)->Lights::Ǝ {
             auto QuadraticAttenuation = [](auto&& Coefficients) {
@@ -61,11 +59,11 @@ namespace RayTracer {
                 };
             };
             if (x.type == LightType::LIGHT_POINT)
-                return Lights::Point(x.pos, glm::vec3{ x.color }, QuadraticAttenuation(x.function));
+                return Lights::Point(glm::vec3{ x.pos }, glm::vec3{ x.color }, QuadraticAttenuation(x.function));
             else if (x.type == LightType::LIGHT_DIRECTIONAL)
-                return Lights::Directional(glm::normalize(x.dir), glm::vec3{ x.color });
+                return Lights::Directional(glm::normalize(glm::vec3{ x.dir }), glm::vec3{ x.color });
             else if (x.type == LightType::LIGHT_SPOT)
-                return Lights::Spot(x.pos, glm::normalize(x.dir), glm::radians(x.angle), glm::radians(x.penumbra), glm::vec3{ x.color }, QuadraticAttenuation(x.function));
+                return Lights::Spot(glm::vec3{ x.pos }, glm::normalize(glm::vec3{ x.dir }), glm::radians(x.angle), glm::radians(x.penumbra), glm::vec3{ x.color }, QuadraticAttenuation(x.function));
             else
                 throw std::runtime_error{ "Unrecognized light type detected!" };
         };
@@ -110,7 +108,6 @@ namespace RayTracer {
         };
 
         auto ObstructionRecords = Config::enableShadow ? ObjectRecords | [](auto&& x) { return std::get<0>(x); } : std::vector<ImplicitFunctions::Ǝ>{};
-
         auto IlluminationModel = Illuminations::WhittedModel(LightRecords, ObstructionRecords);
         auto SupersampledImage = Filter::Frame{ Height, Width, 3 };
 
@@ -121,7 +118,7 @@ namespace RayTracer {
 
         for (auto y : Range{ Height })
             for (auto x : Range{ Width })
-                for (auto AccumulatedIntensity = Ray::Trace(Metadata.cameraData.pos, glm::normalize(ProjectToWorldSpace(x, y) - Metadata.cameraData.pos), IlluminationModel, ObjectRecords, 1); auto c : Range{ 3 })
+                for (auto AccumulatedIntensity = Ray::Trace(Camera.Position, glm::normalize(ProjectToWorldSpace(x, y) - Camera.Position), IlluminationModel, ObjectRecords, 1); auto c : Range{ 3 })
                     SupersampledImage[c][y][x] = AccumulatedIntensity[c];
 
         auto RenderedImage = SupersampledImage.Finalize();
